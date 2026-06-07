@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Filters, Place, TripDay } from '../types';
 import { localStorageAdapter, type StorageAdapter } from '../lib/storage';
-import { SEED_VERSION, seedDays, seedPlaces } from '../data/seed';
+import { activeSeedDays, activeSeedPlaces, MODE, SEED_VERSION } from '../data/seed';
 
 interface PlannerState {
   places: Place[];
@@ -20,6 +20,7 @@ interface PlannerState {
   removePlace: (id: string) => void;
   assignDay: (id: string, day: Place['dayAssignment']) => void;
   toggleBooked: (id: string) => void;
+  importPlaces: (places: Place[], replace: boolean) => void;
 }
 
 const adapter: StorageAdapter = localStorageAdapter;
@@ -34,8 +35,8 @@ const defaultFilters: Filters = {
 };
 
 const persist = async (state: { places: Place[]; days: TripDay[] }) => {
-  await adapter.savePlaces(state.places);
-  await adapter.saveDays(state.days);
+  await adapter.savePlaces(MODE, state.places);
+  await adapter.saveDays(MODE, state.days);
 };
 
 const newId = () =>
@@ -50,17 +51,17 @@ export const usePlanner = create<PlannerState>((set, get) => ({
 
   hydrate: async () => {
     const [places, days, storedVersion] = await Promise.all([
-      adapter.loadPlaces(),
-      adapter.loadDays(),
-      adapter.loadSeedVersion(),
+      adapter.loadPlaces(MODE),
+      adapter.loadDays(MODE),
+      adapter.loadSeedVersion(MODE),
     ]);
     const seedOutdated = storedVersion !== SEED_VERSION;
-    const resolvedPlaces = seedOutdated || !places ? seedPlaces : places;
-    const resolvedDays = seedOutdated || !days ? seedDays : days;
+    const resolvedPlaces = seedOutdated || !places ? activeSeedPlaces : places;
+    const resolvedDays = seedOutdated || !days ? activeSeedDays : days;
     set({ places: resolvedPlaces, days: resolvedDays, hydrated: true });
     if (seedOutdated || !places || !days) {
       await persist({ places: resolvedPlaces, days: resolvedDays });
-      await adapter.saveSeedVersion(SEED_VERSION);
+      await adapter.saveSeedVersion(MODE, SEED_VERSION);
     }
   },
 
@@ -77,7 +78,7 @@ export const usePlanner = create<PlannerState>((set, get) => ({
     const full: Place = { ...place, id, createdAt: now, updatedAt: now };
     set((s) => {
       const next = [...s.places, full];
-      void adapter.savePlaces(next);
+      void adapter.savePlaces(MODE, next);
       return { places: next, selectedId: id };
     });
     return id;
@@ -88,7 +89,7 @@ export const usePlanner = create<PlannerState>((set, get) => ({
       const next = s.places.map((p) =>
         p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p,
       );
-      void adapter.savePlaces(next);
+      void adapter.savePlaces(MODE, next);
       return { places: next };
     });
   },
@@ -96,7 +97,7 @@ export const usePlanner = create<PlannerState>((set, get) => ({
   removePlace: (id) => {
     set((s) => {
       const next = s.places.filter((p) => p.id !== id);
-      void adapter.savePlaces(next);
+      void adapter.savePlaces(MODE, next);
       return {
         places: next,
         selectedId: s.selectedId === id ? null : s.selectedId,
@@ -110,6 +111,28 @@ export const usePlanner = create<PlannerState>((set, get) => ({
     const p = get().places.find((x) => x.id === id);
     if (!p) return;
     get().updatePlace(id, { reservationBooked: !p.reservationBooked });
+  },
+
+  importPlaces: (incoming, replace) => {
+    set((s) => {
+      const next = replace
+        ? incoming
+        : (() => {
+            const existingIds = new Set(s.places.map((p) => p.id));
+            const merged = [...s.places];
+            for (const p of incoming) {
+              if (existingIds.has(p.id)) {
+                const idx = merged.findIndex((x) => x.id === p.id);
+                merged[idx] = p;
+              } else {
+                merged.push(p);
+              }
+            }
+            return merged;
+          })();
+      void adapter.savePlaces(MODE, next);
+      return { places: next, selectedId: null };
+    });
   },
 }));
 

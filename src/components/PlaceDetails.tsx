@@ -17,6 +17,8 @@ export function PlaceDetails({ onEdit }: Props) {
 
   if (!place) return null;
   const cat = CATEGORY_MAP[place.category];
+  const { lat, lng } = place.coordinates;
+  const gmapsViewUrl = `https://www.google.com/maps/search/?api=1&query=${lat}%2C${lng}`;
 
   return (
     <aside className="details-panel">
@@ -114,6 +116,17 @@ export function PlaceDetails({ onEdit }: Props) {
             )}
           </>
         )}
+      </div>
+
+      <div className="details-section">
+        <a
+          className="btn-link wide"
+          href={gmapsViewUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          📍 Open in Google Maps
+        </a>
       </div>
 
       <div className="details-actions">

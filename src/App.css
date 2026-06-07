@@ -1,7 +1,7 @@
 /* ---------- Layout ---------- */
 .app {
-  display: grid;
-  grid-template-rows: auto auto auto 1fr;
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
   overflow: hidden;
 }
@@ -28,6 +28,40 @@
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand h1 { font-size: 18px; margin: 0; font-weight: 600; }
 .brand-mark { font-size: 22px; }
+
+.mode-badge {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.backup-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.btn-on-dark {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: white;
+}
+.btn-on-dark:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
 
 /* ---------- Toolbar ---------- */
 .toolbar {
@@ -123,6 +157,7 @@
 
 /* ---------- Main panes ---------- */
 .main {
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   min-height: 0;
@@ -380,12 +415,27 @@
 }
 .form-grid textarea { resize: vertical; }
 
+.paste-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.paste-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.paste-hint-ok { color: #15803d; }
+.paste-hint-error { color: #b91c1c; }
+
 /* Leaflet div icon: drop default white box */
 .planner-marker { background: transparent !important; border: none !important; }
 
 /* ---------- Mobile ---------- */
 @media (max-width: 768px) {
-  .app { grid-template-rows: auto auto auto auto 1fr; }
   .view-tabs { display: flex; }
   .main { grid-template-columns: 1fr; }
   .pane.hidden-mobile { display: none; }

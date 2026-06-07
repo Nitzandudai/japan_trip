@@ -1,8 +1,14 @@
 import type { Place, TripDay } from '../types';
 
-// Bump this whenever you change `seedPlaces` or `seedDays` and want the app
-// to overwrite the browser's saved data on next load. Any in-app edits made
-// since the last bump will be lost.
+// ----------------------------------------------------------------------------
+// Dev toggle: 'real' for your actual trip data, 'demo' to show off example
+// places. Each mode has its own independent storage — switching is safe.
+// ----------------------------------------------------------------------------
+export const MODE: 'real' | 'demo' = 'real';
+
+// Bump this when you edit `seedPlaces` or `seedDays` and want the change to
+// overwrite the browser's saved data on next load. Affects the current MODE
+// only — the other mode's data is untouched.
 export const SEED_VERSION = '2026-10-itinerary-v1';
 
 const now = new Date().toISOString();
@@ -177,3 +183,8 @@ export const seedPlaces: Place[] = [
     reservationUrl: 'https://www.hakoneyuryo.jp/en/',
   }),
 ];
+
+// What the app actually loads on a fresh start / seed-version bump.
+// Days come from seed.ts in both modes; places are empty in 'real' mode.
+export const activeSeedPlaces: Place[] = (MODE as string) === 'demo' ? seedPlaces : [];
+export const activeSeedDays: TripDay[] = seedDays;

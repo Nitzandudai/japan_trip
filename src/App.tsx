@@ -5,7 +5,9 @@ import { Filters } from './components/Filters';
 import { DayTabs } from './components/DayTabs';
 import { PlaceDetails } from './components/PlaceDetails';
 import { PlaceForm } from './components/PlaceForm';
+import { BackupButtons } from './components/BackupButtons';
 import { usePlanner } from './store/usePlanner';
+import { MODE } from './data/seed';
 import type { Place } from './types';
 import './App.css';
 
@@ -34,8 +36,10 @@ export default function App() {
         <div className="brand">
           <span className="brand-mark">⛩️</span>
           <h1>Japan Trip Planner</h1>
+          {MODE === 'demo' && <span className="mode-badge">DEMO</span>}
         </div>
         <div className="header-actions">
+          <BackupButtons />
           <button className="btn-primary" onClick={() => setCreating(true)}>
             + Add place
           </button>

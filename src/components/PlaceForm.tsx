@@ -24,11 +24,41 @@ const empty: FormState = {
   reservationUrl: null,
 };
 
+// Try to pull a (lat, lng) pair out of whatever the user pasted.
+// Handles:
+//   "35.6595, 139.7004"                              ← right-click → copy coords
+//   "https://maps.app.goo.gl/...?q=35.6595,139.7004"
+//   "https://www.google.com/maps/place/Name/@35.6595,139.7004,17z/..."
+//   "https://www.google.com/maps?q=35.6595,139.7004"
+function parseCoords(input: string): { lat: number; lng: number } | null {
+  const text = input.trim();
+  if (!text) return null;
+
+  // Google Maps URLs put coords after an "@" or in a "q=" / "ll=" param.
+  const patterns = [
+    /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+    /[?&](?:q|ll|destination)=(-?\d+\.\d+),(-?\d+\.\d+)/,
+    /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+    /^\s*(-?\d+\.\d+)\s*[, ]\s*(-?\d+\.\d+)\s*$/,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) {
+      const lat = Number(m[1]);
+      const lng = Number(m[2]);
+      if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng };
+    }
+  }
+  return null;
+}
+
 export function PlaceForm({ place, onClose }: Props) {
   const days = usePlanner((s) => s.days);
   const addPlace = usePlanner((s) => s.addPlace);
   const updatePlace = usePlanner((s) => s.updatePlace);
   const [form, setForm] = useState<FormState>(empty);
+  const [pasteText, setPasteText] = useState('');
+  const [pasteStatus, setPasteStatus] = useState<'idle' | 'ok' | 'error'>('idle');
 
   useEffect(() => {
     if (place) {
@@ -44,6 +74,21 @@ export function PlaceForm({ place, onClose }: Props) {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  const applyPaste = (text: string) => {
+    setPasteText(text);
+    if (!text.trim()) {
+      setPasteStatus('idle');
+      return;
+    }
+    const coords = parseCoords(text);
+    if (coords) {
+      set('coordinates', coords);
+      setPasteStatus('ok');
+    } else {
+      setPasteStatus('error');
+    }
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +150,25 @@ export function PlaceForm({ place, onClose }: Props) {
             <option value="optional">Optional</option>
             <option value="spare-time">Spare-time</option>
           </select>
+        </label>
+
+        <label className="full">
+          <span className="paste-label-row">
+            From Google Maps
+            <span className={'paste-hint paste-hint-' + pasteStatus}>
+              {pasteStatus === 'ok'
+                ? '✓ Coordinates filled in below'
+                : pasteStatus === 'error'
+                ? "Couldn't find coordinates in that text"
+                : 'Paste a Google Maps link, or right-click the map → click coords to copy'}
+            </span>
+          </span>
+          <input
+            type="text"
+            placeholder="https://maps.app.goo.gl/…  or  35.6595, 139.7004"
+            value={pasteText}
+            onChange={(e) => applyPaste(e.target.value)}
+          />
         </label>
 
         <label>
