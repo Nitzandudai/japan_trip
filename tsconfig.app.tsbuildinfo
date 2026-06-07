@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/components/daytabs.tsx","./src/components/filters.tsx","./src/components/listview.tsx","./src/components/mapview.tsx","./src/components/placedetails.tsx","./src/components/placeform.tsx","./src/data/seed.ts","./src/lib/storage.ts","./src/store/useplanner.ts","./src/utils/categories.ts"],"version":"5.9.3"}
