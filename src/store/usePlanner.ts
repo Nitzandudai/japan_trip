@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import type { Filters, Place, TripDay } from '../types';
-import { localStorageAdapter, type StorageAdapter } from '../lib/storage';
+import {
+  activeAdapter,
+  localStorageAdapter,
+  type StorageAdapter,
+} from '../lib/storage';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { activeSeedDays, activeSeedPlaces, MODE, SEED_VERSION } from '../data/seed';
 
 interface PlannerState {
@@ -23,7 +28,42 @@ interface PlannerState {
   importPlaces: (places: Place[], replace: boolean) => void;
 }
 
-const adapter: StorageAdapter = localStorageAdapter;
+const adapter: StorageAdapter = activeAdapter;
+
+// One-time migration: if Supabase is configured and the cloud is empty but
+// this browser's localStorage has data, push the local data up so nothing is lost.
+const migrateLocalToCloud = async (): Promise<{
+  places: Place[] | null;
+  days: TripDay[] | null;
+}> => {
+  if (!isSupabaseConfigured) return { places: null, days: null };
+  const flagKey = `japan-planner.${MODE}.migratedToSupabase.v1`;
+  if (localStorage.getItem(flagKey) === '1') return { places: null, days: null };
+
+  const [cloudPlaces, localPlaces, localDays] = await Promise.all([
+    activeAdapter.loadPlaces(MODE),
+    localStorageAdapter.loadPlaces(MODE),
+    localStorageAdapter.loadDays(MODE),
+  ]);
+
+  const cloudEmpty = !cloudPlaces || cloudPlaces.length === 0;
+  const localHasData = localPlaces && localPlaces.length > 0;
+
+  if (cloudEmpty && localHasData) {
+    // eslint-disable-next-line no-console
+    console.info(
+      `[migration] Uploading ${localPlaces.length} local places to Supabase…`,
+    );
+    await activeAdapter.savePlaces(MODE, localPlaces);
+    if (localDays && localDays.length > 0) {
+      await activeAdapter.saveDays(MODE, localDays);
+    }
+    localStorage.setItem(flagKey, '1');
+    return { places: localPlaces, days: localDays };
+  }
+  localStorage.setItem(flagKey, '1');
+  return { places: null, days: null };
+};
 
 const defaultFilters: Filters = {
   category: 'all',
@@ -50,13 +90,15 @@ export const usePlanner = create<PlannerState>((set, get) => ({
   hydrated: false,
 
   hydrate: async () => {
+    const migrated = await migrateLocalToCloud();
+
     const [places, days, storedVersion] = await Promise.all([
-      adapter.loadPlaces(MODE),
-      adapter.loadDays(MODE),
+      migrated.places ? Promise.resolve(migrated.places) : adapter.loadPlaces(MODE),
+      migrated.days ? Promise.resolve(migrated.days) : adapter.loadDays(MODE),
       adapter.loadSeedVersion(MODE),
     ]);
     const seedOutdated = storedVersion !== SEED_VERSION;
-    const resolvedPlaces = seedOutdated || !places ? activeSeedPlaces : places;
+    const resolvedPlaces = !places ? activeSeedPlaces : places;
     const resolvedDays = seedOutdated || !days ? activeSeedDays : days;
     set({ places: resolvedPlaces, days: resolvedDays, hydrated: true });
     if (seedOutdated || !places || !days) {
